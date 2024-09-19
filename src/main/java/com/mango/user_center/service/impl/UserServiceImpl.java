@@ -128,18 +128,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         //2.加密
         String encryptPassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("userAccount",userAccount);
-        queryWrapper.eq("Password",encryptPassword);
+        queryWrapper.eq("userAccount", userAccount);
+        queryWrapper.eq("Password", encryptPassword);
         User user = userMapper.selectOne(queryWrapper);
         //用户不存在
-        if(user == null) {
+        if (user == null) {
             log.info("user login failed, userAccount cannot match userPassword");
             throw new BusinessException(ErrorCode.USER_ERROR, "用户名或密码错误", "");
         }
 
-
         //3.用户脱敏
         User safetyUser = getSafetyUser(user);
+
         //4.记录用户的登录态
         request.getSession().setAttribute(USER_LOGIN_STATE, safetyUser);
         return safetyUser;
@@ -151,7 +151,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         user.setUpdateTime(new Date());
         boolean isUpdated = userMapper.updateById(user) > 0;
         if (!isUpdated) {
-            throw new BusinessException(ErrorCode.USER_ERROR, "获取用户失败", "");
+            throw new BusinessException(ErrorCode.USER_ERROR, "更新时间失败", "");
         }
         User safetyUser = getSafetyUser(user);
         return safetyUser;

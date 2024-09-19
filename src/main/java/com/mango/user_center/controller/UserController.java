@@ -18,6 +18,7 @@ import com.mango.user_center.service.UserService;
 import com.mango.user_center.utils.GiteeImgBed;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -88,10 +89,28 @@ public class UserController {
 
     @GetMapping("/current")
     public BaseResponse<User> getCurrentUser(HttpServletRequest request) {
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        HttpSession session = request.getSession(false); // 获取session，不创建新的session
+
+        if (session == null) {
+            throw new BusinessException(ErrorCode.USER_ERROR, "Session 不存在", "");
+        }
+
+        long remainingTime = getSessionRemainingTime(session);
+        if (remainingTime > 0) {
+            long minutes = remainingTime / (60 * 1000);
+            long seconds = (remainingTime % (60 * 1000)) / 1000;
+            System.out.printf("Session will expire in: %d minutes and %d seconds.%n", minutes, seconds);
+        } else {
+            System.out.println("Session has already expired.");
+        }
+
+
+        Object userObj = session.getAttribute(USER_LOGIN_STATE);
+
         User currentUser = (User) userObj;
         if (currentUser == null) {
-            throw new BusinessException(ErrorCode.SUCCESS);
+            throw new BusinessException(ErrorCode.USER_ERROR, "登录信息无效", "");
+            // throw new BusinessException(ErrorCode.SUCCESS);
         }
         long userId = currentUser.getId();
         User safetyUser = userService.getCurrentUser(userId, request);
@@ -163,6 +182,30 @@ public class UserController {
         return true;
     }
 
+
+    private static long getSessionRemainingTime(HttpSession session) {
+        // 获取 session 的最大非活动间隔（以秒为单位）
+        int maxInactiveInterval = session.getMaxInactiveInterval();
+
+        // 获取 session 上次访问的时间戳（毫秒）
+        long lastAccessedTime = session.getLastAccessedTime();
+
+        // 获取当前时间戳（毫秒）
+        long currentTime = System.currentTimeMillis();
+
+        // 计算 session 过期的时间戳
+        long expiryTime = lastAccessedTime + (maxInactiveInterval * 1000);
+
+        // 计算剩余时间（毫秒）
+        long remainingTime = expiryTime - currentTime;
+
+        // 如果剩余时间为负数，说明 session 已经过期
+        if (remainingTime < 0) {
+            return 0; // 或者抛出异常，或者处理 session 已过期的情况
+        }
+
+        return remainingTime;
+    }
 }
 
 
